@@ -6,20 +6,39 @@ const Methods = {
 };
 
 const Models = {
-  Accurate: 'Accurate',
-  Average: 'Average',
+  Color: 'Color',
+  Accurate: 'Gray (Accurate)',
+  Average: 'Gray (Average)',
+};
+
+const Palettes = {
+  Gray: [
+    {r: 0, g: 0, b: 0},
+    {r: 1, g: 1, b: 1},
+  ],
+  GrayRed: [
+    {r: 0, g: 0, b: 0},
+    {r: 1, g: 1, b: 1},
+    // {r: 1, g: 0, b: 0},
+    {r: 0.8, g: 0, b: 0},
+    // {r: 0.6, g: 0, b: 0},
+    // {r: 0.4, g: 0, b: 0},
+    // {r: 0.2, g: 0, b: 0},
+  ],
 };
 
 const options = {
   ditherScale: 5,
   method: Methods.Atkinson,
   model: Models.Accurate,
+  palette: 'Gray',
 };
 
 const gui = new GUI();
-gui.add(options, 'ditherScale', 1, 32, 1);
+gui.add(options, 'ditherScale', 1, 12, 1);
 gui.add(options, 'method', Object.values(Methods));
 gui.add(options, 'model', Object.values(Models));
+gui.add(options, 'palette', Object.keys(Palettes));
 
 gui.onChange(() => {
   dither(input);
@@ -34,7 +53,38 @@ input.onload = function() {
   dither(input);
 };
 
+function pixelSub(a, b) {
+  return {
+    r: a.r - b.r,
+    g: a.g - b.g,
+    b: a.b - b.b,
+  };
+}
+
+function pixelAddInPlace(a, b) {
+  if (!a) {
+    return;
+  }
+  a.r += b.r;
+  a.g += b.g;
+  a.b += b.b;
+}
+
+function pixelMul(a, v) {
+  return {
+    r: a.r * v,
+    g: a.g * v,
+    b: a.b * v,
+  };
+}
+
+function pixelDistSq(a, b) {
+  let diff = pixelSub(a, b);
+  return diff.r * diff.r + diff.g * diff.g + diff.b * diff.b;
+}
+
 function dither(image) {
+  const palette = Palettes[options.palette];
   const canvas = document.createElement('canvas');
   const imageWidth = parseInt(image.width);
   const imageHeight = parseInt(image.height);
@@ -62,17 +112,20 @@ function dither(image) {
       let g = imageData.data[4 * i + 1] / 255;
       let b = imageData.data[4 * i + 2] / 255;
 
-      let pixel = 0;
       if (options.model === Models.Accurate) {
-        pixel = Math.sqrt(
+        r = g = b = Math.sqrt(
           0.299 * r * r +
           0.587 * g * g +
           0.114 * b * b);
       } else if (options.model === Models.Average) {
-        pixel = (r + g + b) / 3;
+        r = g = b = (r + g + b) / 3;
       }
 
-      pixels[i] = pixel;
+      pixels[i] = {
+        r,
+        g,
+        b,
+      };
     }
   }
 
@@ -80,34 +133,42 @@ function dither(image) {
     for (let x = 0; x < width; x++) {
       let i = y * width + x;
       let pixel = pixels[i];
-      let newPixel = pixel > 0.5 ? 1 : 0;
-      let error = pixel - newPixel;
+      let minDist = 2000;
+      let newPixel = palette[0];
+      for (let testPixel of palette) {
+        let dist = pixelDistSq(pixel, testPixel);
+        if (dist > minDist) {
+          continue;
+        }
+        minDist = dist;
+        newPixel = testPixel;
+      }
+
+      let error = pixelSub(pixel, newPixel);
 
       // floyd-steinberg
       if (options.method === Methods.FloydSteinberg) {
-        pixels[(x + 1) + y * width] += error * 7 / 16;
-        pixels[(x - 1) + (y + 1) * width] += error * 3 / 16;
-        pixels[(x + 0) + (y + 1) * width] += error * 5 / 16;
-        pixels[(x + 1) + (y + 1) * width] += error * 1 / 16;
+        pixelAddInPlace(pixels[(x + 1) + y * width], pixelMul(error, 7 / 16));
+        pixelAddInPlace(pixels[(x - 1) + (y + 1) * width], pixelMul(error, 3 / 16));
+        pixelAddInPlace(pixels[(x + 0) + (y + 1) * width], pixelMul(error, 5 / 16));
+        pixelAddInPlace(pixels[(x + 1) + (y + 1) * width], pixelMul(error, 1 / 16));
       } else if (options.method === Methods.Atkinson) {
-        pixels[(x + 1) + (y + 0) * width] += error / 8;
-        pixels[(x + 2) + (y + 0) * width] += error / 8;
-        pixels[(x - 1) + (y + 1) * width] += error / 8;
-        pixels[(x + 0) + (y + 1) * width] += error / 8;
-        pixels[(x - 1) + (y + 1) * width] += error / 8;
-        pixels[(x + 0) + (y + 2) * width] += error / 8;
+        pixelAddInPlace(pixels[(x + 1) + (y + 0) * width], pixelMul(error, 1 / 8));
+        pixelAddInPlace(pixels[(x + 2) + (y + 0) * width], pixelMul(error, 1 / 8));
+        pixelAddInPlace(pixels[(x - 1) + (y + 1) * width], pixelMul(error, 1 / 8));
+        pixelAddInPlace(pixels[(x + 0) + (y + 1) * width], pixelMul(error, 1 / 8));
+        pixelAddInPlace(pixels[(x - 1) + (y + 1) * width], pixelMul(error, 1 / 8));
+        pixelAddInPlace(pixels[(x + 0) + (y + 2) * width], pixelMul(error, 1 / 8));
       }
 
-      outData.data[4 * i + 0] = newPixel * 255;
-      outData.data[4 * i + 1] = newPixel * 255;
-      outData.data[4 * i + 2] = newPixel * 255;
+      outData.data[4 * i + 0] = newPixel.r * 255;
+      outData.data[4 * i + 1] = newPixel.g * 255;
+      outData.data[4 * i + 2] = newPixel.b * 255;
       outData.data[4 * i + 3] = 255;
     }
   }
   gfx.putImageData(outData, 0, 0);
-  let existing = document.querySelector('canvas');
-  if (existing) {
-    existing.parentNode.removeChild(existing);
-  }
+  canvasContainer.innerHTML = '';
   canvasContainer.appendChild(canvas);
+  canvasContainer.appendChild(image);
 }
