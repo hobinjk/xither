@@ -25,6 +25,13 @@ const Palettes = {
     // {r: 0.4, g: 0, b: 0},
     // {r: 0.2, g: 0, b: 0},
   ],
+  RGB: [
+    {r: 0, g: 0, b: 0},
+    {r: 1, g: 1, b: 1},
+    {r: 1, g: 0, b: 0},
+    {r: 0, g: 1, b: 0},
+    {r: 0, g: 0, b: 1},
+  ],
 };
 
 const options = {
@@ -46,6 +53,40 @@ gui.onChange(() => {
   }
 });
 
+function ungamma(v) {
+  if (v < 0.04045) {
+    return v / 12.92;
+  }
+  return Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function rgbToXyz(rgb) {
+  let r = ungamma(rgb.r);
+  let g = ungamma(rgb.g);
+  let b = ungamma(rgb.b);
+
+  let x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
+  let y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+  let z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
+  return {x, y, z};
+}
+
+function unhmm(v) {
+  if (v < 216 / 24389) {
+    return (24389 / 25 * v + 16) / 116;
+  }
+  return Math.pow(v, 1/3);
+}
+
+function xyzToLab(xyz) {
+  let fx = unhmm(xyz.x);
+  let fy = unhmm(xyz.y);
+  let fz = unhmm(xyz.z);
+  let l = 116 * fy - 16;
+  let a = 500 * (fx - fy);
+  let b = 200 * (fy - fz);
+  return {l, a, b};
+}
 
 const canvasContainer = document.querySelector('.canvas-container');
 
@@ -116,8 +157,21 @@ function pixelMul(a, v) {
 
 function pixelDistSq(a, b) {
   let diff = pixelSub(a, b);
-  return diff.r * diff.r + diff.g * diff.g + diff.b * diff.b;
+  // return diff.r * diff.r + diff.g * diff.g + diff.b * diff.b;
+
+  return 0.299 * diff.r * diff.r +
+    0.587 * diff.g * diff.g +
+    0.114 * diff.b * diff.b;
 }
+
+// function pixelDistSq(a, b) {
+//   let labA = xyzToLab(rgbToXyz(a));
+//   let labB = xyzToLab(rgbToXyz(b));
+//
+//   return (labA.l - labB.l) * (labA.l - labB.l) +
+//     (labA.a - labB.a) * (labA.a - labB.a) +
+//     (labA.b - labB.b) * (labA.b - labB.b);
+// }
 
 function dither(image) {
   const palette = Palettes[options.palette];
