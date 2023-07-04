@@ -41,17 +41,53 @@ gui.add(options, 'model', Object.values(Models));
 gui.add(options, 'palette', Object.keys(Palettes));
 
 gui.onChange(() => {
-  dither(input);
+  if (lastInput) {
+    dither(lastInput);
+  }
 });
 
 
 const canvasContainer = document.querySelector('.canvas-container');
 
-const input = document.createElement('img');
-input.src = './test.jpg';
-input.onload = function() {
-  dither(input);
-};
+function onDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+let lastInput = null;
+function handleFile(item) {
+  const file = item.getAsFile();
+  const url = URL.createObjectURL(file);
+  const input = document.createElement('img');
+  input.src = url;
+  input.onload = function() {
+    lastInput = input;
+    dither(lastInput);
+  };
+}
+
+function onDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (event.dataTransfer.items) {
+    Array.from(event.dataTransfer.items).forEach((item, i) => {
+      if (item.kind === 'file') {
+        console.log(item);
+        handleFile(item);
+      }
+    });
+  } else if (event.dataTransfer.files) {
+    Array.from(event.dataTransfer.files).forEach((item, i) => {
+      console.log(item);
+      handleFile(item);
+    });
+  }
+}
+const container = document.querySelector('.container');
+container.addEventListener('dragenter', onDragOver);
+container.addEventListener('dragover', onDragOver);
+container.addEventListener('drop', onDrop);
 
 function pixelSub(a, b) {
   return {
