@@ -125,6 +125,9 @@ function onDrop(event) {
   event.preventDefault();
   event.stopPropagation();
 
+  const hint = document.querySelector('.hint');
+  hint.style.display = 'none';
+
   if (event.dataTransfer.items) {
     Array.from(event.dataTransfer.items).forEach((item, i) => {
       if (item.kind === 'file') {
