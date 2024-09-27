@@ -1,4 +1,5 @@
 import GUI from 'https://cdn.jsdelivr.net/npm/lil-gui@0.18/+esm';
+import { hydrants } from './hydrants.js';
 
 const Methods = {
   Atkinson: 'Atkinson',
@@ -13,31 +14,44 @@ const Models = {
 
 const Palettes = {
   Gray: [
-    {r: 0, g: 0, b: 0},
-    {r: 1, g: 1, b: 1},
+    { r: 0, g: 0, b: 0 },
+    { r: 1, g: 1, b: 1 },
   ],
   GrayRed: [
-    {r: 0, g: 0, b: 0},
-    {r: 1, g: 1, b: 1},
+    { r: 0, g: 0, b: 0 },
+    { r: 1, g: 1, b: 1 },
     // {r: 1, g: 0, b: 0},
-    {r: 0.8, g: 0, b: 0},
+    { r: 0.8, g: 0, b: 0 },
     // {r: 0.6, g: 0, b: 0},
     // {r: 0.4, g: 0, b: 0},
     // {r: 0.2, g: 0, b: 0},
   ],
   RGB: [
-    {r: 0, g: 0, b: 0},
-    {r: 1, g: 1, b: 1},
-    {r: 1, g: 0, b: 0},
-    {r: 0, g: 1, b: 0},
-    {r: 0, g: 0, b: 1},
+    { r: 0, g: 0, b: 0 },
+    { r: 1, g: 1, b: 1 },
+    { r: 1, g: 0, b: 0 },
+    { r: 0, g: 1, b: 0 },
+    { r: 0, g: 0, b: 1 },
   ],
 };
+
+for (const hydrant of hydrants) {
+  Palettes[hydrant.name] = hydrant.swatches.map(swa => {
+    let matches = swa.match(/\((\d+), (\d+), (\d+)\)/);
+    console.log(matches, swa);
+    let r = parseInt(matches[1]) / 255;
+    let g = parseInt(matches[2]) / 255;
+    let b = parseInt(matches[3]) / 255;
+    return {
+      r, g, b
+    };
+  });
+}
 
 const options = {
   ditherScale: 5,
   method: Methods.Atkinson,
-  model: Models.Accurate,
+  model: Models.Color,
   palette: 'Gray',
 };
 
@@ -68,14 +82,14 @@ function rgbToXyz(rgb) {
   let x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
   let y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
   let z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
-  return {x, y, z};
+  return { x, y, z };
 }
 
 function unhmm(v) {
   if (v < 216 / 24389) {
     return (24389 / 25 * v + 16) / 116;
   }
-  return Math.pow(v, 1/3);
+  return Math.pow(v, 1 / 3);
 }
 
 function xyzToLab(xyz) {
@@ -85,7 +99,7 @@ function xyzToLab(xyz) {
   let l = 116 * fy - 16;
   let a = 500 * (fx - fy);
   let b = 200 * (fy - fz);
-  return {l, a, b};
+  return { l, a, b };
 }
 
 const canvasContainer = document.querySelector('.canvas-container');
@@ -185,8 +199,6 @@ function dither(image) {
   gfx.height = height;
   canvas.width = width;
   canvas.height = height;
-  canvas.style.width = imageWidth + 'px';
-  canvas.style.height = imageHeight + 'px';
 
   gfx.drawImage(image, 0, 0, width, height);
 
