@@ -216,6 +216,7 @@ function dither(image) {
       let r = imageData.data[4 * i + 0] / 255;
       let g = imageData.data[4 * i + 1] / 255;
       let b = imageData.data[4 * i + 2] / 255;
+      let a = imageData.data[4 * i + 3] / 255;
 
       if (options.model === Models.Accurate) {
         r = g = b = Math.sqrt(
@@ -230,6 +231,7 @@ function dither(image) {
         r,
         g,
         b,
+        a,
       };
     }
   }
@@ -269,7 +271,7 @@ function dither(image) {
       outData.data[4 * i + 0] = newPixel.r * 255;
       outData.data[4 * i + 1] = newPixel.g * 255;
       outData.data[4 * i + 2] = newPixel.b * 255;
-      outData.data[4 * i + 3] = 255;
+      outData.data[4 * i + 3] = pixel.a * 255;
     }
   }
   gfx.putImageData(outData, 0, 0);
