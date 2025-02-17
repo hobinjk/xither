@@ -193,8 +193,8 @@ function pixelDistSq(a, b) {
 function dither(image) {
   const palette = Palettes[options.palette];
   const canvas = document.createElement('canvas');
-  const imageWidth = parseInt(image.width);
-  const imageHeight = parseInt(image.height);
+  const imageWidth = parseInt(image.naturalWidth);
+  const imageHeight = parseInt(image.naturalHeight);
   const gfx = canvas.getContext('2d');
   const width = Math.round(imageWidth / options.ditherScale);
   const height = Math.round(imageHeight / options.ditherScale);
